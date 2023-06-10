@@ -1,0 +1,46 @@
+- hosts: target_hosts
+  become: true
+  user: vagrant
+  tasks:
+    - name: install httpd
+      yum:
+        name: httpd
+        state: latest
+    - name: start and enable httpd
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+    - name: install php
+      yum: 
+        name: "{{item}}" 
+        state: latest
+      with_items:
+        - php
+        - php-devel
+        - php-mbstring
+        - php-mysql
+        - php-gd
+      notify:
+        - restart httpd
+    - name: create vhost direstory
+      file:
+        path: /var/www/vhosts/test.com/public_html
+        state: directory
+        mode: "0755"
+        recurse: yes
+    - name: copy index.html
+      copy:
+        src: /home/takahiro/ansible_test/vhost/index.html
+        dest: /var/www/vhosts/test.com/public_html
+    - name: copy test.com.conf
+      copy:
+        src: /home/takahiro/ansible_test/vhost/test.com.conf
+        dest: /etc/httpd/conf.d/test.com.conf
+      notify:
+        - restart httpd
+  handlers:
+    - name: restart httpd
+      service:
+        name: httpd
+        state: restarted
