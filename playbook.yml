@@ -2,6 +2,12 @@
   become: true
   user: vagrant
   tasks:
+    ##yum update
+    - name: yum update
+      yum:
+        name: '*'
+        state: latest
+    ##httpd
     - name: install httpd
       yum:
         name: httpd
@@ -11,18 +17,6 @@
         name: httpd
         state: started
         enabled: yes
-    - name: install php
-      yum: 
-        name: "{{item}}" 
-        state: latest
-      with_items:
-        - php
-        - php-devel
-        - php-mbstring
-        - php-mysql
-        - php-gd
-      notify:
-        - restart httpd
     - name: create vhost direstory
       file:
         path: /var/www/vhosts/test.com/public_html
@@ -39,8 +33,79 @@
         dest: /etc/httpd/conf.d/test.com.conf
       notify:
         - restart httpd
+    ##php
+    - name: install php
+      yum: 
+        name: "{{item}}" 
+        state: latest
+      with_items:
+        - php
+        - php-devel
+        - php-mbstring
+        - php-mysql
+        - php-gd
+    ##mysql
+    - name: remove mariadb
+      yum:
+        name: mariadb-libs
+        state: absent
+    - name: remove default mysql-community
+      yum:
+        name: mysql-community-*
+        state: absent
+    - name: install RPM-GPG-KEY-mysql
+      rpm_key:
+        key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+        state: present
+    - name: install repository for mysql
+      yum:
+        name: https://repo.mysql.com//mysql80-community-release-el7-7.noarch.rpm
+        state: present
+      ignore_errors: yes
+    - name: install mysql python
+      yum:
+        name: MySQL-python
+        state: present
+      ignore_errors: yes
+    - name: install mysql community devel
+      yum:
+        name: mysql-community-devel*
+        state: present
+      ignore_errors: yes
+    - name: install mysql community server
+      yum:
+        name: mysql-community-server*
+        state: present
+      ignore_errors: yes
+    - name: start mysqld
+      service:
+        name: mysqld
+        state: started
+        enabled: yes
+      ignore_errors: yes
+    #- name: create mysql user
+    #  mysql_user:
+    #    name: test_user
+    #   password: Kenshirou913!
+    #   priv: "*.*:ALL"
+    #    host: localhost
+    #    state: present
+    #- name: create mysql database
+    #  mysql_db:
+    #    name: test_db
+    #    state: present
+    - name: copy my.cnf
+      copy:
+        src: /home/takahiro/ansible_test/mysql/my.cnf
+        dest: /etc
+      notify:
+        - restart mysql
   handlers:
     - name: restart httpd
       service:
         name: httpd
+        state: restarted
+    - name: restart mysql
+      service:
+        name: mysqld
         state: restarted
