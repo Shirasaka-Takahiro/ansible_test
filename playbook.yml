@@ -83,23 +83,32 @@
         state: started
         enabled: yes
       ignore_errors: yes
-    #- name: create mysql user
-    #  mysql_user:
-    #    name: test_user
-    #   password: Kenshirou913!
-    #   priv: "*.*:ALL"
-    #    host: localhost
-    #    state: present
-    #- name: create mysql database
-    #  mysql_db:
-    #    name: test_db
-    #    state: present
     - name: copy my.cnf
       copy:
         src: /home/takahiro/ansible_test/mysql/my.cnf
         dest: /etc
       notify:
         - restart mysql
+    - name: get root password
+      shell: "grep 'A temporary password is generated for root@localhost' /var/log/mysqld.log | awk -F ' ' '{print $(NF)}'"
+      register: root_password
+    - name: update expired root user password
+      command: mysql --user root --password={{ root_password.stdout }} --connect-expired-password --execute="ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Testtest991!';"
+    - name: create mysql user
+      mysql_user:
+        login_user: root
+        login_password: Testtest991!
+        name: test_user
+        password: Kenshirou913!
+        priv: "*.*:ALL"
+        host: localhost
+        state: present
+    - name: create mysql database
+      mysql_db:
+        login_user: root
+        login_password: Testtest991!
+        name: test_db
+        state: present
   handlers:
     - name: restart httpd
       service:
